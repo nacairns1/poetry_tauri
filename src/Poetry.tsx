@@ -1,4 +1,4 @@
-import { ChangeEvent, ReactElement, useCallback, useState } from "react";
+import { ReactElement, useCallback, useState } from "react";
 import { fetch } from "@tauri-apps/api/http";
 import { invoke } from "@tauri-apps/api";
 
@@ -26,16 +26,113 @@ const renderAuthors = (authors: string[]) => {
 	);
 };
 
+const renderPoems = (poems: string[]) => {
+	return (
+		<div className="flex flex-col items-center">
+			{poems.map((item) => {
+				return <PoemButton title={item} key={item} />;
+			})}
+		</div>
+	);
+};
+
+const renderPoemText = (poem: {
+	author: string;
+	lineCount: string;
+	lines: string[];
+	title: string;
+}) => {
+	return <div className="prose text-left bg-primary/10 rounded p-5 my-3">
+		<h2 className="text-center text-xl font-extrabold">{poem.title}</h2>
+		<h3 className="text-center italic ">{poem.author}</h3>
+		{poem.lines.map(line => <p className="block">{line}</p>)}
+
+	</div>;
+};
+
+interface poemProps {
+	title: string;
+	key: string;
+}
+
 interface AuthorProps {
 	author: string;
 	key: string;
 }
 
-const Author = (props: AuthorProps): ReactElement => {
+const PoemButton = (props: poemProps) => {
+	const [poem, setPoem] = useState( {
+		author: "",
+		lineCount: "",
+		lines: [""],
+		title: "",
+	});
+	const [poemOpen, setPoemOpen] = useState(false);
+	const fetchPoem = useCallback(async (title: string) => {
+		try {
+			const response = await fetch<[{ 
+				author: string;
+				lineCount: string;
+				lines: string[];
+				title: string;
+			} ]>(
+				`https://poetrydb.org/title/${title}`,
+				{
+					method: "GET",
+					timeout: 10,
+				}
+			);
+			if (response.ok) {
+				setPoem(response.data[0]);
+				console.log(response.data[0].lines);
+				setPoemOpen(true);
+			}
+			return;
+		} catch (e) {
+			console.error(e);
+		}
+		return;
+	}, []);
+
 	return (
-		<button className="text-center font-bold col-span-1 bg-accent/20 btn btn-accent rounded">
-			{props.author}
-		</button>
+		<div className="my-2" key={props.key}>
+			<button
+				className="btn btn-accent"
+				onClick={() => {
+					fetchPoem(props.title);
+				}}
+			>
+				{props.title}
+			</button>
+			{poemOpen && <div>{renderPoemText(poem)}</div>}
+		</div>
+	);
+};
+
+const Author = (props: AuthorProps): ReactElement => {
+	const [authorPoems, setAuthorPoems] = useState([""]);
+	const [poemsOpen, setPoemsOpen] = useState(false);
+
+	const fetchAuthorPoems = useCallback(async (author: string) => {
+		const fetchedPoems = await fetch<[{ title: string }]>(
+			` https://poetrydb.org/author/${author}/title`,
+			{ method: "GET", timeout: 10 }
+		);
+		setPoemsOpen(true);
+		setAuthorPoems(fetchedPoems.data.map((item) => item.title));
+		console.log(fetchedPoems.data);
+	}, []);
+
+	return (
+		<div className="col-span-1" key="props.key">
+			<button
+				className="text-center font-bold col-span-1 bg-accent/20 btn btn-accent rounded"
+				onClick={() => fetchAuthorPoems(props.author)}
+			>
+				{props.author}
+			</button>
+			{poemsOpen && renderPoems(authorPoems)}
+		</div>
 	);
 };
 
@@ -76,10 +173,10 @@ const AuthorsButton = (): ReactElement => {
 				Authors
 			</button>
 			{authorsOpen && (
-				<div>
-					<textarea
+				<div className="flex flex-col">
+					<label className="text-left font-bold">Search Authors</label>
+					<textarea id="searchAuthors" className="mb-5 w-full"
 						onChange={async (event) => {
-							
 							let filteredAuthors = await invoke<string[]>("search_items", {
 								re: event.target.value,
 								items: authorList,
