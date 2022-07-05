@@ -85,7 +85,7 @@ const PoemButton = (props: poemProps) => {
 			if (response.ok) {
 				setPoem(response.data[0]);
 				console.log(response.data[0].lines);
-				setPoemOpen(true);
+				setPoemOpen((state) => !state);
 			}
 			return;
 		} catch (e) {
@@ -118,7 +118,7 @@ const Author = (props: AuthorProps): ReactElement => {
 			` https://poetrydb.org/author/${author}/title`,
 			{ method: "GET", timeout: 10 }
 		);
-		setPoemsOpen(true);
+		setPoemsOpen((state) => !state);
 		setAuthorPoems(fetchedPoems.data.map((item) => item.title));
 		console.log(fetchedPoems.data);
 	}, []);
@@ -153,7 +153,7 @@ const AuthorsButton = (): ReactElement => {
 			if (response.ok) {
 				setAuthorList(response.data.authors);
 				setFilteredAuthorsList(response.data.authors);
-				setAuthorsOpen(true);
+				setAuthorsOpen(state => !state);
 			}
 			return;
 		} catch (e) {
